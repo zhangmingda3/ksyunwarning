@@ -1,11 +1,11 @@
-package main
+package ksyunwarning
 
 import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	myLogger "github.com/zhangmingda3/ksyun-warning/myloggerBackground"
+	myLogger "github.com/zhangmingda3/myloggerBackground"
 	"io"
 	"net/http"
 	"net/url"
@@ -537,4 +537,32 @@ func (s *Supervisor) GetAggregateChinese(aggregateTypeIndex string) (RuleTypeChi
 	aggregateType["Min"] = "最小值"
 	aggregateType["Sum"] = "总和"
 	return aggregateType[aggregateTypeIndex]
+}
+
+// StartScanRule 客户资源监控开始
+func (s *Supervisor) StartScanRule() {
+	for {
+		rules, err := s.GetRules()
+		if err != nil {
+			s.fileLogger.Error("supervisor.GetRules() Error:%v", err)
+		}
+		s.fileLogger.Debug("supervisor.GetRules : %v", rules)
+		for _, r := range rules {
+			//fmt.Println(r)
+			resources, err := s.GetRuleBondResource(r.id)
+			if err != nil {
+				s.fileLogger.Error("supervisor.GetRuleBondResource Error: %v", err)
+			}
+			if len(resources) > 0 {
+				//查询数据的时间窗对比当前时间提前分钟数
+				leadTime := 1              // 查询当前时间提前几分钟数据
+				timeWindow := 3            // 聚合周期再往前几分钟，查询数据起始时间窗
+				lastPointNullMaxRetry := 2 // HTTP获取数据为null最大重试次数
+				for _, resource := range resources {
+					go s.StartComparing(r, resource, leadTime, timeWindow, lastPointNullMaxRetry)
+				}
+			}
+		}
+		time.Sleep(time.Second * 60)
+	}
 }

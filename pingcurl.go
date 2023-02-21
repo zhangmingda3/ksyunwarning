@@ -1,4 +1,4 @@
-package main
+package ksyunwarning
 
 import (
 	"bytes"
@@ -747,8 +747,8 @@ func (s *Supervisor) containsUrlId(rules []HttpUrlRule, id int) bool {
 	return false
 }
 
-// startHttpTest 开始http探测
-func (s *Supervisor) startHttpTest(flashSecond int) {
+// StartHttpTest 开始http探测
+func (s *Supervisor) StartHttpTest(flashSecond int) {
 	//内存中临时存储正在检测的http url 地址
 	urlMap := make(map[int]*HttpUrlRule, 100)
 	for {

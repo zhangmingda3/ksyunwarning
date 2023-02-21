@@ -1,4 +1,4 @@
-package main
+package ksyunwarning
 
 import (
 	"database/sql"
@@ -9,7 +9,7 @@ import (
 
 var dbPool *sql.DB
 
-func initDB(dbAddr string) (dbPool *sql.DB, err error) {
+func InitDB(dbAddr string) (dbPool *sql.DB, err error) {
 	//根据数据库驱动定义数据库类型
 	dbPool, err = sql.Open("mysql", dbAddr)
 	if err != nil {

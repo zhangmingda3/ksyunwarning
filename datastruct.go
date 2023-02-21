@@ -1,8 +1,9 @@
-package main
+package ksyunwarning
 
 import (
 	"database/sql"
-	myLogger "github.com/zhangmingda3/ksyun-warning/myloggerBackground"
+	myLogger "github.com/zhangmingda3/myloggerBackground"
+	//myLogger "github.com/zhangmingda3/ksyunwarning/myloggerBackground"
 )
 
 // =============↓↓响应结构体信息↓↓=====================
@@ -305,5 +306,5 @@ type AnnouncementNoticeHistory struct {
 	webhook_id                    int
 	notice_one_hours_time         sql.NullString
 	notice_thirteen_hours_time    sql.NullString
-	notice_three_days_time        sql.NullString
+	notice_three_days_time        string
 }

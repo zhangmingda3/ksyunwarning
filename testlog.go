@@ -1,9 +1,9 @@
-package main
+package ksyunwarning
 
 //func main() {
 //	//logger := mylogger.NewConsoleLogger("Error")
 //
-//	logger := myLogger.NewFileLogger("Debug", "D:\\Go-Study\\src\\github.com\\zhangmingda3\\ksyun-warning\\logs", "test.log", 10*1024*1024)
+//	logger := myLogger.NewFileLogger("Debug", "D:\\Go-Study\\src\\github.com\\zhangmingda3\\ksyunwarning\\logs", "test.log", 10*1024*1024)
 //	logger.Debug("这是一条Debug日志")
 
 //for {
