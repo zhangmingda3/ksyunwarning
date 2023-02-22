@@ -72,7 +72,7 @@ func (s *Supervisor) FpingExec(genericIPAddress, count, interval string) (lossFl
 	} else if version == 6 {
 		pingTools = "fping6"
 	}
-	arg := fmt.Sprintf("%s -C%s -p%s  -b32 -t3000  %s | tail -n 1 | awk '{print $10}'", pingTools, count, interval, ipStr)
+	arg := fmt.Sprintf("%s -c%s -p%s  -b32 -t3000 -i500 %s | tail -n 1 | awk '{print $10}'", pingTools, count, interval, ipStr)
 	cmd := exec.Command("/bin/bash", "-c", arg)
 	s.fileLogger.Debug(arg)
 	stdout, err := cmd.Output() // 找出输出
@@ -156,6 +156,7 @@ func (s *Supervisor) FpingToDB(ipResource IPResource, count, interval string) {
 	value := s.FpingExec(ipResource.genericIPAddress, count, interval)
 	nowStr := time.Now().Format("2006-03-04 15:04:05")
 	insertSql := "insert into `monitor01_pinglossdata` (float_value, ip_resource_id,ctime) values(?,?,?);"
+	s.fileLogger.Debug(insertSql+"%v, %v, %s", value, ipResource.id, nowStr)
 	result, err := s.dbPool.Exec(insertSql, value, ipResource.id, nowStr)
 	if err != nil {
 		s.fileLogger.Error("FpingToDB sql : %s dbPool.Exec Error:%v", insertSql, err)
