@@ -74,6 +74,7 @@ func (s *Supervisor) FpingExec(genericIPAddress, count, interval string) (lossFl
 	}
 	arg := fmt.Sprintf("%s -C%s -p%s  -b32 -t3000  %s | tail -n 1 | awk '{print $10}'", pingTools, count, interval, ipStr)
 	cmd := exec.Command("/bin/bash", "-c", arg)
+	s.fileLogger.Debug(arg)
 	stdout, err := cmd.Output() // 找出输出
 	if err != nil {
 		//fmt.Println(err)
