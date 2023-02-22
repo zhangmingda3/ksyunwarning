@@ -95,7 +95,7 @@ func (s *Supervisor) FpingExec(genericIPAddress, count, interval string) (lossFl
 }
 
 // GetIPRuleBondIP 绑定的webhook
-func (s *Supervisor) GetIPRuleBondIP(ipPingLossRuleId int) (ipResources []IPResource) {
+func (s *Supervisor) GetIPRuleBondIP(ipPingLossRuleId int) []IPResource {
 	//获取绑定了哪些资源ID
 	sqlRuleBoundResourceString := "select * from `monitor01_ippinglossrule_ips` where ippinglossrule_id=?;"
 	boundRows, err := s.dbPool.Query(sqlRuleBoundResourceString, ipPingLossRuleId)
@@ -122,7 +122,7 @@ func (s *Supervisor) GetIPRuleBondIP(ipPingLossRuleId int) (ipResources []IPReso
 	//fmt.Println("IP切片：", idsStrSlice)
 	boundSum := len(idsStrSlice)
 
-	//var IPresources []IPResource
+	var IPresources []IPResource
 	if boundSum > 0 {
 		//组合查询各个资源ID的sql语句
 		queryBoundResourceString := "select * from `monitor01_resource` where id="
@@ -134,6 +134,7 @@ func (s *Supervisor) GetIPRuleBondIP(ipPingLossRuleId int) (ipResources []IPReso
 		if err != nil {
 			s.fileLogger.Error("GetIPRuleBondIP -->%s Error: %v", queryBoundIPSql, err)
 		}
+
 		//获取查询结果
 		for boundIPs.Next() {
 			var ipobj IPResource
@@ -141,12 +142,12 @@ func (s *Supervisor) GetIPRuleBondIP(ipPingLossRuleId int) (ipResources []IPReso
 			if err != nil {
 				s.fileLogger.Error("GetIPRuleBondIP boundIPs.Scan Error: %v", err)
 			}
-			ipResources = append(ipResources, ipobj)
+			IPresources = append(IPresources, ipobj)
 			s.fileLogger.Debug("boundIPs.Scan %v", ipobj)
 		}
-		s.fileLogger.Info("GetIPRuleBondIP rule id: %d, resources: %v", ipPingLossRuleId, ipResources)
+		s.fileLogger.Info("GetIPRuleBondIP rule id: %d, resources: %v", ipPingLossRuleId, IPresources)
 	}
-	return
+	return IPresources
 }
 
 // FpingToDB 发起一次ping测试值存到数据库count：ping一次的包数，interval：每个包的间隔时间,建议次方法20S执行一次
