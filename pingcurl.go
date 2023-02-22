@@ -94,7 +94,7 @@ func (s *Supervisor) FpingExec(genericIPAddress, count, interval string) (lossFl
 	return
 }
 
-// GetIPRuleBondIP 绑定的webhook
+// GetIPRuleBondIP 获取报警规则绑定的IP资源
 func (s *Supervisor) GetIPRuleBondIP(ipPingLossRuleId int) []IPResource {
 	//获取绑定了哪些资源ID
 	sqlRuleBoundResourceString := "select * from `monitor01_ippinglossrule_ips` where ippinglossrule_id=?;"
@@ -121,11 +121,12 @@ func (s *Supervisor) GetIPRuleBondIP(ipPingLossRuleId int) []IPResource {
 	}
 	//fmt.Println("IP切片：", idsStrSlice)
 	boundSum := len(idsStrSlice)
+	//fmt.Println(boundSum)
 
 	var IPresources []IPResource
 	if boundSum > 0 {
 		//组合查询各个资源ID的sql语句
-		queryBoundResourceString := "select * from `monitor01_resource` where id="
+		queryBoundResourceString := "select * from `monitor01_ipresource` where id="
 		sqlIdsString := strings.Join(idsStrSlice, " or id=")
 		queryBoundIPSql := queryBoundResourceString + sqlIdsString + ";"
 		// 执行查询资源
@@ -134,7 +135,6 @@ func (s *Supervisor) GetIPRuleBondIP(ipPingLossRuleId int) []IPResource {
 		if err != nil {
 			s.fileLogger.Error("GetIPRuleBondIP -->%s Error: %v", queryBoundIPSql, err)
 		}
-
 		//获取查询结果
 		for boundIPs.Next() {
 			var ipobj IPResource
