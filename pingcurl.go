@@ -154,8 +154,9 @@ func (s *Supervisor) GetIPRuleBondIP(ipPingLossRuleId int) []IPResource {
 // FpingToDB 发起一次ping测试值存到数据库count：ping一次的包数，interval：每个包的间隔时间,建议次方法20S执行一次
 func (s *Supervisor) FpingToDB(ipResource IPResource, count, interval string) {
 	value := s.FpingExec(ipResource.genericIPAddress, count, interval)
-	insertSql := "insert into `monitor01_pinglossdata` (float_value, ip_resource_id) values(?,?);"
-	result, err := s.dbPool.Exec(insertSql, value, ipResource.id)
+	nowStr := time.Now().Format("2006-03-04 15:04:05")
+	insertSql := "insert into `monitor01_pinglossdata` (float_value, ip_resource_id,ctime) values(?,?,?);"
+	result, err := s.dbPool.Exec(insertSql, value, ipResource.id, nowStr)
 	if err != nil {
 		s.fileLogger.Error("FpingToDB sql : %s dbPool.Exec Error:%v", insertSql, err)
 	}
