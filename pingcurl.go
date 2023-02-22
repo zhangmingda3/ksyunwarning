@@ -3,7 +3,6 @@ package ksyunwarning
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -72,16 +71,20 @@ func (s *Supervisor) FpingExec(genericIPAddress, count, interval string) (lossFl
 	} else if version == 6 {
 		pingTools = "fping6"
 	}
-	arg := fmt.Sprintf("%s -c%s -p%s  -b32 -t3000 -i500 %s | tail -n 1 | awk '{print $10}'", pingTools, count, interval, ipStr)
-	cmd := exec.Command("/bin/bash", "-c", arg)
-	s.fileLogger.Debug(arg)
+	//arg := fmt.Sprintf("%s -c%s -p%s   -t3000  %s | tail -n 1 | awk '{print $10}'", pingTools, count, interval, ipStr)
+	cmd := exec.Command(pingTools, "-c", count, "-p", interval, "-b32", "-t3000", "-i500", ipStr, "| tail -n 1 ")
+	//s.fileLogger.Debug(arg)
 	stdout, err := cmd.Output() // 找出输出
+	var result string
 	if err != nil {
 		//fmt.Println(err)
 		s.fileLogger.Error("fping %s error:%v", genericIPAddress, err)
 
+	} else {
+		result = string(stdout)
+		s.fileLogger.Debug("exec.Command OutPut:%v", result)
 	}
-	result := string(stdout)
+
 	if len(result) > 0 {
 		//fmt.Println("result:", result)
 		numStr := strings.TrimSpace(strings.Trim(result, "%\n"))
