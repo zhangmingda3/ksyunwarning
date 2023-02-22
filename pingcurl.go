@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -72,28 +73,31 @@ func (s *Supervisor) FpingExec(genericIPAddress, count, interval string) (lossFl
 		pingTools = "fping6"
 	}
 	//arg := fmt.Sprintf("%s -c%s -p%s   -t3000  %s | tail -n 1 | awk '{print $10}'", pingTools, count, interval, ipStr)
-	cmd := exec.Command(pingTools, "-c", count, "-p", interval, "-b32", "-t3000", "-i500", ipStr, "| tail -n 1 ")
-	//s.fileLogger.Debug(arg)
-	stdout, err := cmd.Output() // 找出输出
+	cmd := exec.Command(pingTools, "-c", count, "-p", interval, "-b32", "-t3000", "-i500", ipStr)
+	stdout, err := cmd.CombinedOutput() // 找出输出
 	var result string
 	if err != nil {
 		//fmt.Println(err)
-		s.fileLogger.Error("fping %s error:%v", genericIPAddress, err)
-
+		s.fileLogger.Error("fping %s error:%v", ipStr, err)
 	} else {
 		result = string(stdout)
-		s.fileLogger.Debug("exec.Command OutPut:%v", result)
+		s.fileLogger.Debug("exec.Command CombinedOutput: %v", result)
 	}
-
-	if len(result) > 0 {
-		//fmt.Println("result:", result)
-		numStr := strings.TrimSpace(strings.Trim(result, "%\n"))
-		//fmt.Println("numStr:", numStr)
-		lossFloat, err = strconv.ParseFloat(numStr, 4)
-		if err != nil {
-			s.fileLogger.Error("strconv.ParseFloat Error:%v", err)
-		}
-		//fmt.Println("float num:", lossFloat)
+	//对输出进行处理，获取最后一行
+	lines := strings.Split(result, "\n")
+	lastLine := lines[len(lines)-2]
+	s.fileLogger.Debug("lastline:", lastLine)
+	// 通过正则获取百分比字符串
+	reg, err := regexp.Compile("\\d+%")
+	if err != nil {
+		s.fileLogger.Error("regexp.Compile Error:", err)
+	}
+	subStrings := reg.FindStringSubmatch(lastLine)
+	var percent string
+	if len(subStrings) > 0 {
+		percent = subStrings[0]
+		percentNum := strings.Trim(percent, "%")
+		lossFloat, err = strconv.ParseFloat(percentNum, 4)
 	}
 	return
 }
