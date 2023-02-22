@@ -2,7 +2,7 @@ package ksyunwarning
 
 import (
 	"database/sql"
-	myLogger "github.com/zhangmingda3/myloggerBackground"
+	"github.com/zhangmingda3/myLogger"
 	//myLogger "github.com/zhangmingda3/ksyunwarning/myloggerBackground"
 )
 

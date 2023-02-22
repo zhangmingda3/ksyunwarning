@@ -2,10 +2,9 @@ package ksyunwarning
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"fmt"
-	myLogger "github.com/zhangmingda3/myloggerBackground"
+	"github.com/zhangmingda3/myLogger"
 	"io"
 	"net/http"
 	"net/url"
@@ -15,12 +14,26 @@ import (
 )
 
 // NewSupervisor ==========构造监控者结构体===============
-func NewSupervisor(logger *myLogger.FileLogger, db *sql.DB) (supervisor *Supervisor) {
+func NewSupervisor() (supervisor *Supervisor) {
 	supervisor = &Supervisor{
-		fileLogger: logger,
-		dbPool:     db,
+		//fileLogger: logger,
+		//dbPool: db,
 	}
 	return
+}
+
+func (s *Supervisor) InitLogger(logLevel, logfilePath, logName string, maxLogSize int) {
+	s.fileLogger = myLogger.NewFileLogger(logLevel, logfilePath, logName, int64(maxLogSize))
+}
+
+func (s *Supervisor) CreateDBPool(dbAddr string) {
+	db, err := InitDB(dbAddr)
+	if err != nil {
+		s.fileLogger.Fatal("initDB Fatal: %v", err)
+	} else {
+		s.dbPool = db
+		s.fileLogger.Info("(%s connection OK", dbAddr)
+	}
 }
 
 // GetMetricStatisticsBatch 获取云端监控数据
