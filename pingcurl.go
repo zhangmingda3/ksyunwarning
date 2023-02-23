@@ -67,7 +67,9 @@ func (s *Supervisor) FpingExec(genericIPAddress, count, interval string) (lossFl
 	lossFloat = 100 // 默认丢包100
 	pingTools := "fping"
 	ip, version := s.ParseIP(genericIPAddress)
+	fmt.Println("net.IP:", ip)
 	ipStr := ip.String()
+	fmt.Println("ip.String():", ipStr)
 	if version == 4 {
 		pingTools = "fping"
 	} else if version == 6 {
