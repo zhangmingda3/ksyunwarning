@@ -67,9 +67,9 @@ func (s *Supervisor) FpingExec(genericIPAddress, count, interval string) (lossFl
 	lossFloat = 100 // 默认丢包100
 	pingTools := "fping"
 	ip, version := s.ParseIP(genericIPAddress)
-	fmt.Println("net.IP:", ip)
+	//fmt.Println("net.IP:", ip)
 	ipStr := ip.String()
-	fmt.Println("ip.String():", ipStr)
+	//fmt.Println("ip.String():", ipStr)
 	if version == 4 {
 		pingTools = "fping"
 	} else if version == 6 {
@@ -90,6 +90,9 @@ func (s *Supervisor) FpingExec(genericIPAddress, count, interval string) (lossFl
 	lines := strings.Split(result, "\n")
 	s.fileLogger.Debug("lines len:%v", len(lines))
 	fmt.Printf("lines len:%v", len(lines))
+	for index, line := range lines {
+		fmt.Println("line:%v -->%v", index, line)
+	}
 	lastLine := lines[len(lines)-2]
 	s.fileLogger.Debug("lastline:", lastLine)
 	// 通过正则获取百分比字符串
