@@ -471,6 +471,7 @@ func (s *Supervisor) WarningToWebhook(warnRule WarnRule, warnResource WarnResour
 	}
 	var ruleBondWebhooks []Webhook
 	var err error
+	fmt.Println("判断是啥类型")
 	switch r := warnRule.(type) {
 	//不同的资源绑定的webhook表不一样
 	case Rule:
@@ -479,7 +480,9 @@ func (s *Supervisor) WarningToWebhook(warnRule WarnRule, warnResource WarnResour
 			s.fileLogger.Error("GetRuleBondWebhook Error: %v", err)
 		}
 	case IPPingLossRule:
+		fmt.Println("是IPping报警规则")
 		ruleBondWebhooks, err = s.GetIPPingLossRuleBondWebhooks(r.id)
+		fmt.Println("ruleBondWebhooks:", ruleBondWebhooks)
 		if err != nil {
 			s.fileLogger.Error("GetIPPingLossRuleBondWebhooks Error: %v", err)
 		}

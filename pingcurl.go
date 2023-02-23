@@ -42,7 +42,9 @@ func AverageFloatValue(nums []float64) float64 {
 	for _, num := range nums {
 		sum += num
 	}
-	return sum
+	avg := sum / float64(len(nums))
+	avgFloat, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", avg), 64)
+	return avgFloat
 }
 
 // ParseIP  解析IP地址
@@ -68,33 +70,31 @@ func (s *Supervisor) FpingExec(genericIPAddress, count, interval string) (lossFl
 	pingTools := "fping"
 	ip, version := s.ParseIP(genericIPAddress)
 	//fmt.Println("net.IP:", ip)
-	ipStr := ip.String()
-	//fmt.Println("ip.String():", ipStr)
+	ipStr := ip.String() // ping 使用字符串
 	if version == 4 {
 		pingTools = "fping"
 	} else if version == 6 {
 		pingTools = "fping6"
 	}
-	//arg := fmt.Sprintf("%s -c%s -p%s   -t3000  %s | tail -n 1 | awk '{print $10}'", pingTools, count, interval, ipStr)
 	cmd := exec.Command(pingTools, "-c", count, "-p", interval, "-b32", "-t3000", "-i500", ipStr)
 	stdout, err := cmd.CombinedOutput() // 找出输出
 	var result string
 	if err != nil {
-		fmt.Println("CombinedOutput Error:", err)
+		//fmt.Println("CombinedOutput Error:", err)
 		s.fileLogger.Error("fping %s error:%v", ipStr, err)
 	}
 	result = string(stdout)
-	s.fileLogger.Debug("exec.Command CombinedOutput: %v", result)
-	fmt.Println("result:", result)
+	//s.fileLogger.Debug("exec.Command CombinedOutput: %s", result)
+	//fmt.Println("result:", result)
 	//对输出进行处理，获取最后一行
 	lines := strings.Split(result, "\n")
 	s.fileLogger.Debug("lines len:%v", len(lines))
-	fmt.Printf("lines len:%v", len(lines))
-	for index, line := range lines {
-		fmt.Println("line:%v -->%v", index, line)
-	}
+	//fmt.Printf("lines len:%v\n", len(lines))
+	//for index, line := range lines {
+	//	fmt.Printf("line:%v -->%s\n", index, line)
+	//}
 	lastLine := lines[len(lines)-2]
-	s.fileLogger.Debug("lastline:", lastLine)
+	s.fileLogger.Debug("lastline:%s", lastLine)
 	// 通过正则获取百分比字符串
 	reg, err := regexp.Compile("\\d+%")
 	if err != nil {
@@ -106,8 +106,9 @@ func (s *Supervisor) FpingExec(genericIPAddress, count, interval string) (lossFl
 		percent = subStrings[0]
 		percentNum := strings.Trim(percent, "%")
 		lossFloat, err = strconv.ParseFloat(percentNum, 4)
+		s.fileLogger.Debug("%s ping loss:%v%%", ipStr, lossFloat)
 	}
-	return
+	return lossFloat
 }
 
 // GetIPRuleBondIP 获取报警规则绑定的IP资源
@@ -169,10 +170,11 @@ func (s *Supervisor) GetIPRuleBondIP(ipPingLossRuleId int) []IPResource {
 // FpingToDB 发起一次ping测试值存到数据库count：ping一次的包数，interval：每个包的间隔时间,建议次方法20S执行一次
 func (s *Supervisor) FpingToDB(ipResource IPResource, count, interval string) {
 	value := s.FpingExec(ipResource.genericIPAddress, count, interval)
-	nowStr := time.Now().Format("2006-03-04 15:04:05")
-	insertSql := "insert into `monitor01_pinglossdata` (float_value, ip_resource_id,ctime) values(?,?,?);"
+	nowStr := time.Now().Format("2006-01-02 15:04:05")
+	insertSql := "insert into monitor01_pinglossdata(ctime,float_value,ip_resource_id) values(?,?,?);"
 	s.fileLogger.Debug(insertSql+"%v, %v, %s", value, ipResource.id, nowStr)
-	result, err := s.dbPool.Exec(insertSql, value, ipResource.id, nowStr)
+	//result, err := s.dbPool.Exec(insertSql, nowStr, valueStr, ipid)
+	result, err := s.dbPool.Exec(insertSql, nowStr, value, ipResource.id)
 	if err != nil {
 		s.fileLogger.Error("FpingToDB sql : %s dbPool.Exec Error:%v", insertSql, err)
 	}
@@ -289,7 +291,7 @@ func (s *Supervisor) StartFpingBondIPsToDB(forIntervalSecond int, count, pinterv
 // GetPingLossData 获取监控数据
 func (s *Supervisor) GetPingLossData(ipResource IPResource, period int) (pingLossDatas []PingLossData) {
 	getPointSql := "select * from `monitor01_pinglossdata` where ctime>=? and ip_resource_id=?;"
-	periodStartTime := time.Now().Add(time.Minute * time.Duration(-period)).Format("2006-01-02 13:04:05")
+	periodStartTime := time.Now().Add(time.Minute * time.Duration(-period)).Format("2006-01-02 15:04:05")
 	pingLossRows, err := s.dbPool.Query(getPointSql, periodStartTime, ipResource.id)
 	if err != nil {
 		s.fileLogger.Error("GetPingLossData Error:%v", err)
@@ -379,6 +381,7 @@ func (s *Supervisor) OneIPDataTest(pingLossRule IPPingLossRule, ip IPResource) {
 	for _, pingLossData := range pingLossDatas {
 		pointValues = append(pointValues, pingLossData.float_value)
 	}
+	fmt.Printf("pointValues: %v\n", pointValues)
 	var lastPointValue float64
 	if len(pointValues) > 0 {
 		lastPointValue = pointValues[len(pointValues)-1]
@@ -389,12 +392,14 @@ func (s *Supervisor) OneIPDataTest(pingLossRule IPPingLossRule, ip IPResource) {
 	calcAggregateResult := s.CalcAggregateResult(pingLossRule, pointValues)
 	// 超过阈值启动判断逻辑
 	if calcAggregateResult >= pingLossRule.upper_limit {
+		fmt.Println("calcAggregateResult >= pingLossRule.upper_limit")
 		// 查数据库里是否有报警记录：
 		// 有 判断时间是否够间隔，
 		// ---够： 报警：次数在已报警次数上增加1
 		//1. 查数据库里是否有报警记录：
 		ipAlarms := s.SearchIPPingLossAlarmList(pingLossRule.id, ip.id, 1)
 		if len(ipAlarms) > 0 { //有报警未恢复
+			fmt.Println("SearchIPPingLossAlarmList有报警未恢复")
 			for _, ipAlarm := range ipAlarms {
 				// 数据库内时间转换为时间类型
 				loc, err := time.LoadLocation("Asia/Shanghai")
@@ -406,9 +411,12 @@ func (s *Supervisor) OneIPDataTest(pingLossRule IPPingLossRule, ip IPResource) {
 					s.fileLogger.Error("time.Parse Error:%v", err)
 				}
 				if ipAlarm.times < pingLossRule.max_alarm_times { //判断报警次数是否超
+					fmt.Println("判断报警次数没有超限")
 					deltaTMin := time.Now().Sub(lastAlarmTime).Minutes()
+					fmt.Println("时间间隔分钟：", deltaTMin)
 					deltaTMinInt := int(deltaTMin)
-					if deltaTMinInt > pingLossRule.alarm_interval { // 判断时间是否够间隔，
+					if deltaTMinInt >= pingLossRule.alarm_interval { // 判断时间是否够间隔，
+						fmt.Println("判断时间够间隔")
 						warnType := 1 //1报警触发 0报警解除
 						alarmTimes := ipAlarm.times + 1
 						s.WarningToWebhook(pingLossRule, ip, calcAggregateResult, lastPointValue, nowStr, warnType, alarmTimes)
@@ -453,7 +461,7 @@ func (s *Supervisor) OneIPDataTest(pingLossRule IPPingLossRule, ip IPResource) {
 }
 
 // StartTestPingLossRuleAllIPFromDB 从数据库查询 丢包数据判断是否报警
-func (s *Supervisor) StartTestPingLossRuleAllIPFromDB() {
+func (s *Supervisor) StartTestPingLossRuleAllIPFromDB(flushIntervalSecond int) {
 	for {
 		pingLossRules, err := s.GetIPPingLossRules()
 		if err != nil {
@@ -465,7 +473,7 @@ func (s *Supervisor) StartTestPingLossRuleAllIPFromDB() {
 				go s.OneIPDataTest(pingLossRule, ip) // 每个IP检查一次开始
 			}
 		}
-		time.Sleep(time.Second * 60)
+		time.Sleep(time.Second * time.Duration(flushIntervalSecond))
 	}
 }
 
@@ -497,7 +505,7 @@ func (s *Supervisor) GetIPPingLossRuleBondWebhooks(ruleId int) (webhooks []Webho
 	boundSum := len(idsStrSlice)
 	if boundSum > 0 {
 		//组合查询各个资源ID的sql语句
-		queryBoundWebhooksString := "select * from `monitor01_ippinglossrule_webhooks` where id="
+		queryBoundWebhooksString := "select * from `monitor01_webhook` where id="
 		sqlIdsString := strings.Join(idsStrSlice, " or id=")
 		queryBoundWebhooksSql := queryBoundWebhooksString + sqlIdsString + ";"
 		// 执行查询资源

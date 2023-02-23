@@ -110,9 +110,9 @@ type AlarmObj struct {
 	alarm_time        string
 	alarm_value       float64
 	last_alarm_time   string
-	hold_minutes      *int
+	hold_minutes      sql.NullInt64
 	now_status        int
-	recover_time      *string
+	recover_time      sql.NullString
 	times             int
 	alarm_resource_id int
 	alarm_rule_id     int
@@ -226,8 +226,8 @@ type IPPingLossAlarmList struct {
 	alarm_time        string
 	last_alarm_time   string
 	alarm_value       float64
-	recover_time      string
-	hold_minutes      int
+	recover_time      sql.NullString
+	hold_minutes      sql.NullInt64
 	now_status        int
 	times             int //报警次数
 	alarm_resource_id int
@@ -306,5 +306,5 @@ type AnnouncementNoticeHistory struct {
 	webhook_id                    int
 	notice_one_hours_time         sql.NullString
 	notice_thirteen_hours_time    sql.NullString
-	notice_three_days_time        string
+	notice_three_days_time        sql.NullString
 }
