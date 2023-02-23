@@ -370,7 +370,7 @@ func (s *Supervisor) StartComparing(r Rule, resource Resource, leadTime, timeWin
 	if r.rule_type == 0 {
 		//对比代码字段
 		if value != -8888.8888 && (value >= r.upper_limit || value <= r.lower_limit) {
-			fmt.Println("报警触发：.....")
+			//fmt.Println("报警触发：.....")
 			// 查数据库里是否有报警记录：
 			// 有 判断时间是否够间隔，
 			// ---够： 报警：次数在已报警次数上增加1
@@ -394,7 +394,12 @@ func (s *Supervisor) StartComparing(r Rule, resource Resource, leadTime, timeWin
 						if deltaTMinInt > r.alarm_interval { // 判断时间是否够间隔，
 							warnType := 1 //1报警触发 0报警解除
 							alarmTimes := alarm.times + 1
-							s.WarningToWebhook(r, resource, value, value, sqlAlarmTime, warnType, alarmTimes)
+							firstAlarmTime, err := time.ParseInLocation("2006-01-02 15:04:05", alarm.alarm_time, loc)
+							if err != nil {
+								s.fileLogger.Error("time.ParseInLocation Error:%v", err)
+							}
+							firstAlarmTimeStr := firstAlarmTime.Format("2006-01-02 15:04:05")
+							s.WarningToWebhook(r, resource, value, value, firstAlarmTimeStr, warnType, alarmTimes)
 							nowStr := time.Now().Format("2006-01-02 15:04:05")
 							s.UpdateExistAlarm(alarm.id, alarmTimes, nowStr)
 						}
@@ -416,19 +421,14 @@ func (s *Supervisor) StartComparing(r Rule, resource Resource, leadTime, timeWin
 					nowStatus := 0
 					warnType := 0 //0 报警解除 1报警触发
 					alarmTimes := alarm.times + 0
-					s.WarningToWebhook(r, resource, value, value, sqlAlarmTime, warnType, alarmTimes)
+					firstAlarmTime, err := time.ParseInLocation("2006-01-02 15:04:05", alarm.alarm_time, loc)
+					if err != nil {
+						s.fileLogger.Error("ParseInLocation Error:%v", err)
+					}
+					firstAlarmTimeStr := firstAlarmTime.Format("2006-01-02 15:04:05")
+					s.WarningToWebhook(r, resource, value, value, firstAlarmTimeStr, warnType, alarmTimes)
 					// 数据库内时间转换为时间类型
-					firstAlarmTimeString := alarm.alarm_time
-					loc, err := time.LoadLocation("Asia/Shanghai")
-					if err != nil {
-						s.fileLogger.Error("time.LoadLocation(\"Asia/Shanghai\") Error:%v", err)
-					}
-					firstAlarmTime, err := time.ParseInLocation("2006-01-02 15:04:05", firstAlarmTimeString, loc)
-					if err != nil {
-						s.fileLogger.Error("time.Parse Error:%v", err)
-					}
 					//fmt.Println("firstAlarmTime:", firstAlarmTime)
-					//fmt.Println("sqlAlarmTime:", sqlAlarmTime)
 					holdMinutes := int(valueAlarmTime.Sub(firstAlarmTime).Minutes())
 					s.OverAlarmToSql(alarm.id, holdMinutes, nowStatus, sqlAlarmTime)
 				}
@@ -439,7 +439,7 @@ func (s *Supervisor) StartComparing(r Rule, resource Resource, leadTime, timeWin
 		//fmt.Println("前一分钟：", prevTimestamp, prevValue)
 		//fmt.Println("当前最新数据", timestamp, value)
 		subValue := value - prevValue
-		if value != -8888.8888 && (subValue >= r.upper_limit || subValue <= r.lower_limit) {
+		if value != -8888.8888 && (subValue >= r.upper_limit || subValue <= -r.lower_limit) {
 			warnType := 1 //0解除，1警报，
 			s.WarningToWebhook(r, resource, value, value, sqlAlarmTime, warnType, 1)
 			nowStatus := 2 //0解除，1警报，2事件 sql中
@@ -553,7 +553,7 @@ func (s *Supervisor) GetAggregateChinese(aggregateTypeIndex string) (RuleTypeChi
 }
 
 // StartScanRule 客户资源监控开始
-func (s *Supervisor) StartScanRule() {
+func (s *Supervisor) StartScanRule(flashSecond int) {
 	for {
 		rules, err := s.GetRules()
 		if err != nil {
@@ -576,6 +576,6 @@ func (s *Supervisor) StartScanRule() {
 				}
 			}
 		}
-		time.Sleep(time.Second * 60)
+		time.Sleep(time.Second * time.Duration(flashSecond))
 	}
 }

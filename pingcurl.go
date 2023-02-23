@@ -381,7 +381,7 @@ func (s *Supervisor) OneIPDataTest(pingLossRule IPPingLossRule, ip IPResource) {
 	for _, pingLossData := range pingLossDatas {
 		pointValues = append(pointValues, pingLossData.float_value)
 	}
-	fmt.Printf("pointValues: %v\n", pointValues)
+	//fmt.Printf("pointValues: %v\n", pointValues)
 	var lastPointValue float64
 	if len(pointValues) > 0 {
 		lastPointValue = pointValues[len(pointValues)-1]
@@ -389,37 +389,42 @@ func (s *Supervisor) OneIPDataTest(pingLossRule IPPingLossRule, ip IPResource) {
 
 	now := time.Now()
 	nowStr := now.Format("2006-01-02 15:04:05")
+	loc, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		s.fileLogger.Error("time.LoadLocation(\"Asia/Shanghai\") Error:%v", err)
+	}
 	calcAggregateResult := s.CalcAggregateResult(pingLossRule, pointValues)
 	// 超过阈值启动判断逻辑
 	if calcAggregateResult >= pingLossRule.upper_limit {
-		fmt.Println("calcAggregateResult >= pingLossRule.upper_limit")
+		//fmt.Println("calcAggregateResult >= pingLossRule.upper_limit")
 		// 查数据库里是否有报警记录：
 		// 有 判断时间是否够间隔，
 		// ---够： 报警：次数在已报警次数上增加1
 		//1. 查数据库里是否有报警记录：
 		ipAlarms := s.SearchIPPingLossAlarmList(pingLossRule.id, ip.id, 1)
 		if len(ipAlarms) > 0 { //有报警未恢复
-			fmt.Println("SearchIPPingLossAlarmList有报警未恢复")
+			//fmt.Println("SearchIPPingLossAlarmList有报警未恢复")
 			for _, ipAlarm := range ipAlarms {
 				// 数据库内时间转换为时间类型
-				loc, err := time.LoadLocation("Asia/Shanghai")
-				if err != nil {
-					s.fileLogger.Error("time.LoadLocation(\"Asia/Shanghai\") Error:%v", err)
-				}
+
 				lastAlarmTime, err := time.ParseInLocation("2006-01-02 15:04:05", ipAlarm.last_alarm_time, loc)
 				if err != nil {
 					s.fileLogger.Error("time.Parse Error:%v", err)
 				}
 				if ipAlarm.times < pingLossRule.max_alarm_times { //判断报警次数是否超
-					fmt.Println("判断报警次数没有超限")
+					//fmt.Println("判断报警次数没有超限")
 					deltaTMin := time.Now().Sub(lastAlarmTime).Minutes()
-					fmt.Println("时间间隔分钟：", deltaTMin)
+					//fmt.Println("时间间隔分钟：", deltaTMin)
 					deltaTMinInt := int(deltaTMin)
 					if deltaTMinInt >= pingLossRule.alarm_interval { // 判断时间是否够间隔，
-						fmt.Println("判断时间够间隔")
+						firstAlarmTime, err := time.ParseInLocation("2006-01-02 15:04:05", ipAlarm.alarm_time, loc)
+						if err != nil {
+							s.fileLogger.Error("ParseInLocation Error:%v", err)
+						}
+						firstAlarmTimeStr := firstAlarmTime.Format("2006-01-02 15:04:05")
 						warnType := 1 //1报警触发 0报警解除
 						alarmTimes := ipAlarm.times + 1
-						s.WarningToWebhook(pingLossRule, ip, calcAggregateResult, lastPointValue, nowStr, warnType, alarmTimes)
+						s.WarningToWebhook(pingLossRule, ip, calcAggregateResult, lastPointValue, firstAlarmTimeStr, warnType, alarmTimes)
 						s.UpdateExistIpAlarm(ipAlarm.id, alarmTimes, nowStr)
 					}
 				}
@@ -440,19 +445,14 @@ func (s *Supervisor) OneIPDataTest(pingLossRule IPPingLossRule, ip IPResource) {
 				nowStatus := 0
 				warnType := 0 //0 报警解除 1报警触发
 				alarmTimes := pingLossAlarm.times + 0
-				s.WarningToWebhook(pingLossRule, ip, calcAggregateResult, lastPointValue, nowStr, warnType, alarmTimes)
 				// 数据库内时间转换为时间类型
-				firstAlarmTimeString := pingLossAlarm.alarm_time
-				loc, err := time.LoadLocation("Asia/Shanghai")
-				if err != nil {
-					s.fileLogger.Error("time.LoadLocation(\"Asia/Shanghai\") Error:%v", err)
-				}
-				firstAlarmTime, err := time.ParseInLocation("2006-01-02 15:04:05", firstAlarmTimeString, loc)
-				if err != nil {
-					s.fileLogger.Error("time.Parse Error:%v", err)
-				}
+				firstAlarmTime, err := time.ParseInLocation("2006-01-02 15:04:05", pingLossAlarm.alarm_time, loc)
 				//fmt.Println("firstAlarmTime:", firstAlarmTime)
-				//fmt.Println("sqlAlarmTime:", sqlAlarmTime)
+				if err != nil {
+					s.fileLogger.Error("ParseInLocation Error:%v", err)
+				}
+				firstAlarmTimeStr := firstAlarmTime.Format("2006-01-02 15:04:05")
+				s.WarningToWebhook(pingLossRule, ip, calcAggregateResult, lastPointValue, firstAlarmTimeStr, warnType, alarmTimes)
 				holdMinutes := int(now.Sub(firstAlarmTime).Minutes())
 				s.OverIPAlarmToSql(pingLossAlarm.id, nowStr, holdMinutes, nowStatus)
 			}

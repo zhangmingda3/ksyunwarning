@@ -12,7 +12,7 @@ import (
 )
 
 // PostWarningToFeishu 向飞书发报警
-func (s *Supervisor) PostWarningToFeishu(warnRule WarnRule, feishuUrl string, warnResource WarnResource, warnValue, lastPointValue float64, timeStamp, warnTypeStr string, alarmTimes int) {
+func (s *Supervisor) PostWarningToFeishu(warnRule WarnRule, feishuUrl string, warnResource WarnResource, warnValue, lastPointValue float64, firstAlarmTimeStamp, warnTypeStr string, alarmTimes int) {
 	urlObj, err := url.Parse(feishuUrl)
 	if err != nil {
 		s.fileLogger.Error("url.Parse Error:%v", err)
@@ -89,17 +89,17 @@ func (s *Supervisor) PostWarningToFeishu(warnRule WarnRule, feishuUrl string, wa
 			if err != nil {
 				s.fileLogger.Error(" time.LoadLocation Error:", err)
 			}
-			locationTime, err := time.ParseInLocation("2006-01-02 15:04:05", timeStamp, loc)
+			locationTime, err := time.ParseInLocation("2006-01-02 15:04:05", firstAlarmTimeStamp, loc)
 			duration := fmt.Sprintf("持续时间：%s\n", time.Now().Sub(locationTime).String()) // 持续时间
 			textMSG = fmt.Sprintf("时间：%s\n资源名称：%s\n监控项：%s\n当前%s值：%v\n%sUID：%s\n实例ID：%s\n地区：%s\nNameSpace：%s\n报警策略名称：%s\n策略类型：%s\n规则：统计%v分钟%s %s\n已报警次数：第%v次/最多%v次",
-				timeStamp, resource.name, rule.metric_name, change, warnValue, duration,
+				firstAlarmTimeStamp, resource.name, rule.metric_name, change, warnValue, duration,
 				resource.uid, resource.instance_id, s.GetRegionChinese(resource.region),
 				rule.namespace, rule.alarm_name, ruleTypeChinese, rule.period, s.GetAggregateChinese(rule.aggregate), ruleTextChinese, alarmTimes, rule.max_alarm_times)
 		} else if rule.rule_type == 1 {
-			textMSG = fmt.Sprintf("时间：%s\n资源名称：%s\n监控项：%s\n%s值：%v\n当前值：%v\nUID：%s\n实例ID：%s\n地区：%s\nNameSpace：%s\n报警策略名称：%s\n策略类型：%s\n规则：%s\n已报警次数：第%v次/最多%v次",
-				timeStamp, resource.name, rule.metric_name, change, warnValue, lastPointValue,
+			textMSG = fmt.Sprintf("时间：%s\n资源名称：%s\n监控项：%s\n%s值：%v\n当前值：%v\nUID：%s\n实例ID：%s\n地区：%s\nNameSpace：%s\n报警策略名称：%s\n策略类型：%s\n规则：%s",
+				firstAlarmTimeStamp, resource.name, rule.metric_name, change, warnValue, lastPointValue,
 				resource.uid, resource.instance_id, s.GetRegionChinese(resource.region),
-				rule.namespace, rule.alarm_name, ruleTypeChinese, ruleTextChinese, alarmTimes, rule.max_alarm_times)
+				rule.namespace, rule.alarm_name, ruleTypeChinese, ruleTextChinese)
 		}
 		// 如果查询数数据都为空。也报一下失败
 		if warnValue == -8888.8888 && lastPointValue == -8888.8888 {
@@ -148,10 +148,10 @@ func (s *Supervisor) PostWarningToFeishu(warnRule WarnRule, feishuUrl string, wa
 			resource = v
 		}
 		title := fmt.Sprintf("%s! 客户：%s  %s IP: %s 丢包率: %v%%\n", warnTypeStr, resource.customer_name, resource.name, resource.genericIPAddress, warnValue)
-		locationTime, err = time.ParseInLocation("2006-01-02 15:04:05", timeStamp, loc)
+		locationTime, err = time.ParseInLocation("2006-01-02 15:04:05", firstAlarmTimeStamp, loc)
 		duration := fmt.Sprintf("持续时间：%s\n", time.Now().Sub(locationTime).String()) // 持续时间
 		textMSG := fmt.Sprintf("时间：%s\n资源名称：%s\nIP地址：%s\n丢包率：%v%%\n%s归属地：%s\n报警策略名称：%s\n 规则：连续%v分钟丢包%s超过%v%%\n当前丢包率：%v%%\n已报警次数：第%v次/最多%v次",
-			timeStamp, resource.name, resource.genericIPAddress, warnValue, duration, resource.location, rule.alarm_name, rule.period, s.GetAggregateChinese(rule.aggregate), rule.upper_limit, lastPointValue, alarmTimes, rule.max_alarm_times)
+			firstAlarmTimeStamp, resource.name, resource.genericIPAddress, warnValue, duration, resource.location, rule.alarm_name, rule.period, s.GetAggregateChinese(rule.aggregate), rule.upper_limit, lastPointValue, alarmTimes, rule.max_alarm_times)
 
 		textTag := Tag{
 			Tag:  "text",
@@ -200,7 +200,7 @@ func (s *Supervisor) PostWarningToFeishu(warnRule WarnRule, feishuUrl string, wa
 		}
 		title := fmt.Sprintf("%s! HTTP：%s   %s 状态码: %s\n", warnTypeStr, rule.url_name, healthy, httpCode)
 		textMSG := fmt.Sprintf("时间：%s\n资源名称：%s\n地址：%s\n状态码：%v\n检测间隔：%v秒\n健康阈值：%v次\n不健康阈值：%v次\n已报警次数：第%v次/最多%v次\n",
-			timeStamp, rule.url_name, rule.url, httpCode, rule.test_interval_second, rule.healthy_times, rule.unhealthy_times, alarmTimes, rule.max_alarm_times)
+			firstAlarmTimeStamp, rule.url_name, rule.url, httpCode, rule.test_interval_second, rule.healthy_times, rule.unhealthy_times, alarmTimes, rule.max_alarm_times)
 		//title := fmt.Sprintf("%s! 客户：%s  %s IP: %s 丢包率: %v%%\n", warnTypeStr, resource.customer_name, resource.name, resource.genericIPAddress, warnValue)
 		//locationTime, err = time.ParseInLocation("2006-01-02 15:04:05", timeStamp, loc)
 		//duration := fmt.Sprintf("持续时间：%s\n", time.Now().Sub(locationTime).String()) // 持续时间
@@ -313,7 +313,7 @@ func (s *Supervisor) PostWarningToFeishu(warnRule WarnRule, feishuUrl string, wa
 }
 
 // PostWarningToWechat 向微信发报警
-func (s *Supervisor) PostWarningToWechat(warnRule WarnRule, feishuUrl string, warnResource WarnResource, warnValue, lastPointValue float64, timeStamp, warnTypeStr string, alarmTimes int) {
+func (s *Supervisor) PostWarningToWechat(warnRule WarnRule, feishuUrl string, warnResource WarnResource, warnValue, lastPointValue float64, firstAlarmTimeStamp, warnTypeStr string, alarmTimes int) {
 	parsedUrl, err := url.Parse(feishuUrl)
 	if err != nil {
 		s.fileLogger.Error("url.Parse Error:%v", err)
@@ -345,17 +345,17 @@ func (s *Supervisor) PostWarningToWechat(warnRule WarnRule, feishuUrl string, wa
 		title := fmt.Sprintf("%s： %s 监控项:%s %s值:%v\n", warnTypeStr, resource.name, rule.metric_name, change, warnValue)
 		var textMSG string
 		if rule.rule_type == 0 {
-			locationTime, err = time.ParseInLocation("2006-01-02 15:04:05", timeStamp, loc)
+			locationTime, err = time.ParseInLocation("2006-01-02 15:04:05", firstAlarmTimeStamp, loc)
 			duration := fmt.Sprintf("持续时间：%s\n", time.Now().Sub(locationTime).String()) // 持续时间
 			textMSG = fmt.Sprintf("时间：%s\n资源名称：%s\n监控项：%s\n当前%s值：%v\n%sUID：%s\n实例ID：%s\n地区：%s\nNameSpace：%s\n报警策略名称：%s\n策略类型：%s\n规则：统计%v分钟%s %s\n已报警次数：第%v次/最多%v次",
-				timeStamp, resource.name, rule.metric_name, change, warnValue, duration,
+				firstAlarmTimeStamp, resource.name, rule.metric_name, change, warnValue, duration,
 				resource.uid, resource.instance_id, s.GetRegionChinese(resource.region),
 				rule.namespace, rule.alarm_name, ruleTypeChinese, rule.period, s.GetAggregateChinese(rule.aggregate), ruleTextChinese, alarmTimes, rule.max_alarm_times)
 		} else if rule.rule_type == 1 {
-			textMSG = fmt.Sprintf("时间：%s\n资源名称：%s\n监控项：%s\n%s值：%v\n当前值：%v\nUID：%s\n实例ID：%s\n地区：%s\nNameSpace：%s\n报警策略名称：%s\n策略类型：%s\n规则：%s\n已报警次数：第%v次/最多%v次",
-				timeStamp, resource.name, rule.metric_name, change, warnValue, lastPointValue,
+			textMSG = fmt.Sprintf("时间：%s\n资源名称：%s\n监控项：%s\n%s值：%v\n当前值：%v\nUID：%s\n实例ID：%s\n地区：%s\nNameSpace：%s\n报警策略名称：%s\n策略类型：%s\n规则：%s",
+				firstAlarmTimeStamp, resource.name, rule.metric_name, change, warnValue, lastPointValue,
 				resource.uid, resource.instance_id, s.GetRegionChinese(resource.region),
-				rule.namespace, rule.alarm_name, ruleTypeChinese, ruleTextChinese, alarmTimes, rule.max_alarm_times)
+				rule.namespace, rule.alarm_name, ruleTypeChinese, ruleTextChinese)
 		}
 		// 如果查询数数据都为空。也报一下失败
 		if warnValue == -8888.8888 && lastPointValue == -8888.8888 {
@@ -377,11 +377,11 @@ func (s *Supervisor) PostWarningToWechat(warnRule WarnRule, feishuUrl string, wa
 		if err != nil {
 			s.fileLogger.Error(" time.LoadLocation Error:", err)
 		}
-		locationTime, err := time.ParseInLocation("2006-01-02 15:04:05", timeStamp, loc)
+		locationTime, err := time.ParseInLocation("2006-01-02 15:04:05", firstAlarmTimeStamp, loc)
 		duration := fmt.Sprintf("持续时间：%s\n", time.Now().Sub(locationTime).String()) // 持续时间
 		title := fmt.Sprintf("%s! 客户：%s  %s IP: %s 丢包率: %v%%\n", warnTypeStr, resource.customer_name, resource.name, resource.genericIPAddress, warnValue)
 		textMSG := fmt.Sprintf("<font size=\"18\" face=\"verdana\">时间：%s\n资源名称：%s\nIP地址：%s\n丢包率：%v%%\n归属地：%s\n%s</font>报警策略名称：%s\n 规则：连续%v分钟丢包%s超过%v%%\n已报警次数：第%v次/最多%v次",
-			timeStamp, resource.name, resource.genericIPAddress, warnValue, resource.location, duration, rule.alarm_name, rule.period, s.GetAggregateChinese(rule.aggregate), rule.upper_limit, alarmTimes, rule.max_alarm_times)
+			firstAlarmTimeStamp, resource.name, resource.genericIPAddress, warnValue, resource.location, duration, rule.alarm_name, rule.period, s.GetAggregateChinese(rule.aggregate), rule.upper_limit, alarmTimes, rule.max_alarm_times)
 		colorTitle := "<font color=\"" + warnColor + "\">" + title + "</font>"
 		markDown := WechatMarkDown{Content: colorTitle + textMSG}
 		weChatData := WechatData{MsgType: "markdown",
@@ -408,7 +408,7 @@ func (s *Supervisor) PostWarningToWechat(warnRule WarnRule, feishuUrl string, wa
 
 		title := fmt.Sprintf("%s! HTTP：%s   %s 状态码: %s\n", warnTypeStr, rule.url_name, healthy, httpCode)
 		textMSG := fmt.Sprintf("<font size=\"18\" face=\"verdana\">时间：%s\n资源名称：%s\n地址：%s\n状态码：%v\n检测间隔：%v秒\n健康阈值：%v次\n不健康阈值：%v次\n已报警次数：第%v次/最多%v次</font>",
-			timeStamp, rule.url_name, rule.url, httpCode, rule.test_interval_second, rule.healthy_times, rule.unhealthy_times, alarmTimes, rule.max_alarm_times)
+			firstAlarmTimeStamp, rule.url_name, rule.url, httpCode, rule.test_interval_second, rule.healthy_times, rule.unhealthy_times, alarmTimes, rule.max_alarm_times)
 		colorTitle := "<font color=\"" + warnColor + "\">" + title + "</font>"
 		markDown := WechatMarkDown{Content: colorTitle + textMSG}
 		weChatData := WechatData{MsgType: "markdown",
@@ -471,7 +471,7 @@ func (s *Supervisor) WarningToWebhook(warnRule WarnRule, warnResource WarnResour
 	}
 	var ruleBondWebhooks []Webhook
 	var err error
-	fmt.Println("判断是啥类型")
+	//fmt.Println("判断是啥类型")
 	switch r := warnRule.(type) {
 	//不同的资源绑定的webhook表不一样
 	case Rule:
@@ -480,15 +480,15 @@ func (s *Supervisor) WarningToWebhook(warnRule WarnRule, warnResource WarnResour
 			s.fileLogger.Error("GetRuleBondWebhook Error: %v", err)
 		}
 	case IPPingLossRule:
-		fmt.Println("是IPping报警规则")
+		//fmt.Println("是IPping报警规则")
 		ruleBondWebhooks, err = s.GetIPPingLossRuleBondWebhooks(r.id)
-		fmt.Println("ruleBondWebhooks:", ruleBondWebhooks)
+		//fmt.Println("ruleBondWebhooks:", ruleBondWebhooks)
 		if err != nil {
 			s.fileLogger.Error("GetIPPingLossRuleBondWebhooks Error: %v", err)
 		}
 	case *HttpUrlRule:
 		ruleBondWebhooks, err = s.GetHttpUrlRuleBondWebhook(r.id)
-		fmt.Println(ruleBondWebhooks)
+		//fmt.Println(ruleBondWebhooks)
 		if err != nil {
 			s.fileLogger.Error("GetHttpUrlRuleBondWebhook Error: %v", err)
 		}
