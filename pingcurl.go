@@ -78,12 +78,11 @@ func (s *Supervisor) FpingExec(genericIPAddress, count, interval string) (lossFl
 	stdout, err := cmd.CombinedOutput() // 找出输出
 	var result string
 	if err != nil {
-		//fmt.Println(err)
+		fmt.Println("CombinedOutput Error:", err)
 		s.fileLogger.Error("fping %s error:%v", ipStr, err)
-	} else {
-		result = string(stdout)
-		s.fileLogger.Debug("exec.Command CombinedOutput: %v", result)
 	}
+	result = string(stdout)
+	s.fileLogger.Debug("exec.Command CombinedOutput: %v", result)
 	fmt.Println("result:", result)
 	//对输出进行处理，获取最后一行
 	lines := strings.Split(result, "\n")
