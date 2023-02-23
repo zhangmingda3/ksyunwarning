@@ -85,6 +85,7 @@ func (s *Supervisor) FpingExec(genericIPAddress, count, interval string) (lossFl
 	}
 	//对输出进行处理，获取最后一行
 	lines := strings.Split(result, "\n")
+	s.fileLogger.Debug("lines len:%v", len(lines))
 	lastLine := lines[len(lines)-2]
 	s.fileLogger.Debug("lastline:", lastLine)
 	// 通过正则获取百分比字符串
