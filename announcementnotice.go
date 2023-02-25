@@ -231,7 +231,7 @@ func (s *Supervisor) StartNoticeAnnouncement(flushMin int) {
 					data["notice_thirteen_hours_time"] = nowStr
 					// 更新都数据库
 					s.UpdateNoticeHistory(noticeHistory.id, data)
-				} else if timeDurationHours < 73 && noticeHistory.notice_three_days_advance == 0 {
+				} else if timeDurationHours < 86 && noticeHistory.notice_three_days_advance == 0 {
 					//	72小时内割接通知
 					if bondWebhook.webhook_type == 0 {
 						feishuUrl := bondWebhook.url
