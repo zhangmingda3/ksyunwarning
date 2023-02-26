@@ -710,7 +710,6 @@ func (s *Supervisor) AlwaysTestHttpUrlStatus(urlObj *HttpUrlRule) {
 		nowStr = now.Format("2006-01-02 15:04:05")
 		if urlObj.enable {
 			httpCode = s.httpTestOnce(urlObj.url)
-			httpCode = 0
 			s.fileLogger.Debug("test url %s response Code:%v", urlObj.url, httpCode)
 			//如果本次检查不健康
 			if !s.HttpCodeHealthy(httpCode) {
