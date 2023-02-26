@@ -553,6 +553,7 @@ func (s *Supervisor) httpTestOnce(serviceUrl string) (responseCode int) {
 		s.fileLogger.Error("url.Parse(serviceUrl) Error: %v", err)
 	}
 	request, err := http.NewRequest("GET", urlstr.String(), bytes.NewBuffer([]byte{}))
+	defer request.Body.Close() //
 	var response *http.Response
 	// 客户端禁止重定向
 	client := &http.Client{
@@ -560,14 +561,22 @@ func (s *Supervisor) httpTestOnce(serviceUrl string) (responseCode int) {
 	}
 	//response, err = http.DefaultClient.Do(request)
 	response, err = client.Do(request)
+
 	if err != nil {
-		s.fileLogger.Error("http探测含重定向：%v", err)
+		s.fileLogger.Error("client.Do(request) http探测含重定向Error：%v", err)
 	} else {
-		//防止空指针异常runtime error: invalid memory address or nil pointer dereference
+		//放在else里面，防止空指针异常runtime error: invalid memory address or nil pointer dereference
 		responseCode = response.StatusCode
 	}
+	if response.Body != nil {
+		err = response.Body.Close() //必须关闭否则自动打开的goroutine无法关闭
+		if err != nil {
+			s.fileLogger.Error("response.Body.Close()Error：%v", err)
+		}
+	}
+
 	s.fileLogger.Info("serviceUrl %v response Code: %v", serviceUrl, responseCode)
-	return
+	return responseCode
 }
 
 // GetHttpUrlRuleBondWebhook 查询绑定webhook地址
@@ -660,7 +669,7 @@ func (s *Supervisor) HttpCodeHealthy(code int) bool {
 	return strings.HasPrefix(codeStr, "2") || strings.HasPrefix(codeStr, "3")
 }
 
-// UpdateHttpUrlRule 更新已报警次数和上次报警时间
+// UpdateHttpUrlRule 更新已报警次数和上次报警时间 urlObj.id, alarmTimes, nowStr, healty
 func (s Supervisor) UpdateHttpUrlRule(urlObjID, alarmTimes int, nowStr string, healthy int) {
 	UpdateSql := "update `monitor01_httptestrule` set already_alarm_times=?, last_alarm_time=?, healthy=? where id=?;"
 	_, err := s.dbPool.Exec(UpdateSql, alarmTimes, nowStr, healthy, urlObjID)
@@ -681,26 +690,35 @@ func (s Supervisor) UpdateHttpUrlRuleHealthy(urlObjID, healthy int) {
 // AlwaysTestHttpUrlStatus 判断一个URL地址是否健康
 func (s *Supervisor) AlwaysTestHttpUrlStatus(urlObj *HttpUrlRule) {
 	//初始化健康检查计数
-	healtyTimes := 0
-	unhealtyTimes := 0
+	healthyTimes := 0
+	unhealthyTimes := 0
+	now := time.Now()
+	nowStr := now.Format("2006-01-02 15:04:05")
+	var httpCodeFloat float64
+	var deltaTMin float64
+	var httpCode int
+	var healthy int
+	var warnType int
+	var alarmTimes int
+	var deltaTMinInt int
+	resetAlarmTimes := 0 //数据库内重置报警次数
+	var lastAlarmTime time.Time
 	//如果不结束检查就一直跑
 	s.fileLogger.Debug("开始检测url:%v", urlObj.url)
-	for {
+	for !urlObj.delete {
+		now = time.Now()
+		nowStr = now.Format("2006-01-02 15:04:05")
 		if urlObj.enable {
-			httpCode := s.httpTestOnce(urlObj.url)
+			httpCode = s.httpTestOnce(urlObj.url)
+			httpCode = 0
 			s.fileLogger.Debug("test url %s response Code:%v", urlObj.url, httpCode)
-			now := time.Now()
-			nowStr := now.Format("2006-01-02 15:04:05")
 			//如果本次检查不健康
 			if !s.HttpCodeHealthy(httpCode) {
-				unhealtyTimes += 1
-				if unhealtyTimes >= urlObj.unhealthy_times {
+				unhealthyTimes += 1
+				if unhealthyTimes >= urlObj.unhealthy_times {
 					//// 报警发生
-					//webhooks, err := s.GetHttpUrlRuleBondWebhook(urlObj.id)
-					//if err != nil {
-					//	s.fileLogger.Error("AlwaysTestHttpUrlStatus GetHttpUrlRuleBondWebhook Error:%v ", err)
-					//}
-					warnType := 1
+					s.fileLogger.Warning("报警发生：url:%s unhealthyTimes:%v", urlObj.url, unhealthyTimes)
+					warnType = 1
 					//是否发报警
 					if urlObj.already_alarm_times < urlObj.max_alarm_times { //判断报警次数是否超
 						//开始判断保健间隔时间是否够设置间隔分钟数
@@ -709,13 +727,14 @@ func (s *Supervisor) AlwaysTestHttpUrlStatus(urlObj *HttpUrlRule) {
 						if err != nil {
 							s.fileLogger.Error("time.LoadLocation(\"Asia/Shanghai\") Error:%v", err)
 						}
-						lastAlarmTime, err := time.ParseInLocation("2006-01-02 15:04:05", urlObj.last_alarm_time, loc)
-						deltaTMin := time.Now().Sub(lastAlarmTime).Minutes()
-						deltaTMinInt := int(deltaTMin)
+						lastAlarmTime, err = time.ParseInLocation("2006-01-02 15:04:05", urlObj.last_alarm_time, loc)
+						deltaTMin = time.Now().Sub(lastAlarmTime).Minutes()
+						deltaTMinInt = int(deltaTMin)
 						//够报警间隔分钟数---报警 发送
 						if deltaTMinInt > urlObj.alarm_interval { // 判断时间是否够间隔，
-							alarmTimes := urlObj.already_alarm_times + 1
-							httpCodeFloat := float64(httpCode)
+							alarmTimes = urlObj.already_alarm_times + 1
+							fmt.Println("alarmTimes:", alarmTimes)
+							httpCodeFloat = float64(httpCode)
 							healty := 0 //健康1，不健康0
 							s.WarningToWebhook(urlObj, urlObj, httpCodeFloat, httpCodeFloat, nowStr, warnType,
 								alarmTimes)
@@ -724,30 +743,29 @@ func (s *Supervisor) AlwaysTestHttpUrlStatus(urlObj *HttpUrlRule) {
 						}
 					}
 				}
-				//如果本次健康
-			} else {
+			} else { //如果本次健康
 				//看当前记录健康状态，判断是否需要发送恢复健康通知
-				if unhealtyTimes != 0 {
-					healtyTimes += 1
+				if unhealthyTimes != 0 {
+					healthyTimes += 1
 					//判断从不健康需要过渡为健康状态
-					if healtyTimes >= urlObj.healthy_times {
+					if healthyTimes >= urlObj.healthy_times {
 						//恢复健康
-						healtyTimes = urlObj.healthy_times
-						unhealtyTimes = 0
+						healthyTimes = urlObj.healthy_times
+						unhealthyTimes = 0
 						//发送恢复通知
-						warnType := 0 //0恢复 1报警
-						httpCodeFloat := float64(httpCode)
-						alarmTimes := urlObj.already_alarm_times
+						warnType = 0 //0恢复 1报警
+						httpCodeFloat = float64(httpCode)
+						alarmTimes = urlObj.already_alarm_times
 						s.WarningToWebhook(urlObj, urlObj, httpCodeFloat, httpCodeFloat, nowStr, warnType,
 							alarmTimes)
-						resetAlarmTimes := 0 //数据库内重置报警次数
-						healty := 1          // 健康1，不健康0
-						s.UpdateHttpUrlRule(urlObj.id, resetAlarmTimes, nowStr, healty)
+						//resetAlarmTimes := 0 //数据库内重置报警次数
+						healthy = 1 // 健康1，不健康0
+						s.UpdateHttpUrlRule(urlObj.id, resetAlarmTimes, nowStr, healthy)
 						s.fileLogger.Debug("不健康--->健康 %s", urlObj.url)
 					}
 				} else {
 					if urlObj.healthy == 0 {
-						healthy := 1
+						healthy = 1
 						s.fileLogger.Debug("本就健康更新数据库为健康%s", urlObj.url)
 						s.UpdateHttpUrlRuleHealthy(urlObj.id, healthy)
 					}
@@ -756,12 +774,13 @@ func (s *Supervisor) AlwaysTestHttpUrlStatus(urlObj *HttpUrlRule) {
 		} else {
 			s.fileLogger.Debug("URL检测暂停中url:%v %v后刷新", urlObj.url, urlObj.test_interval_second)
 		}
-		if urlObj.delete {
-			s.fileLogger.Debug("删除检测url:%v 子线程已退出", urlObj.url)
-			break
-		}
+		//if urlObj.delete {
+		//	return
+		//	//break
+		//}
 		time.Sleep(time.Duration(urlObj.test_interval_second) * time.Second)
 	}
+	s.fileLogger.Debug("删除检测url:%v 子线程已退出", urlObj.url)
 }
 
 // containsUrlId 判断数据库中是否存在已有URL。
