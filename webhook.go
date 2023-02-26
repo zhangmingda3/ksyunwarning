@@ -300,9 +300,15 @@ func (s *Supervisor) PostWarningToFeishu(warnRule WarnRule, feishuUrl string, wa
 	if err != nil {
 		s.fileLogger.Error("Feishu http.DefaultClient.Do Error:%v", err)
 	}
-	recvBytes, err := io.ReadAll(r.Body)
-	if err != nil {
-		s.fileLogger.Error("Read Feishu r.Body Error: %v", err)
+	var recvBytes []byte
+	if r.Body != nil {
+		recvBytes, err = io.ReadAll(r.Body)
+		if err != nil {
+			if err != nil {
+				s.fileLogger.Error("Read Feishu r.Body Error: %v", err)
+			}
+		}
+		r.Body.Close()
 	}
 	bodyStr := string(recvBytes)
 	if r.StatusCode != 200 {
@@ -449,9 +455,15 @@ func (s *Supervisor) PostWarningToWechat(warnRule WarnRule, feishuUrl string, wa
 	if err != nil {
 		s.fileLogger.Error("Wechat http.DefaultClient.Do Error:%v", err)
 	}
-	recvBytes, err := io.ReadAll(response.Body)
-	if err != nil {
-		s.fileLogger.Error("Read Wechat r.Body Error: %v", err)
+	var recvBytes []byte
+	if response.Body != nil {
+		recvBytes, err = io.ReadAll(response.Body)
+		if err != nil {
+			if err != nil {
+				s.fileLogger.Error("Read Wechat r.Body Error: %v", err)
+			}
+		}
+		response.Body.Close()
 	}
 	bodyStr := string(recvBytes)
 	if response.StatusCode != 200 {

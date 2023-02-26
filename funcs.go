@@ -114,10 +114,15 @@ func (s *Supervisor) GetMetricStatisticsBatch(uid, ns, metricName, region, insta
 	} else {
 		s.fileLogger.Info("GetMetricStatisticsBatch http request successful recv_code:%v", r.Status)
 	}
-	bodyBytes, err := io.ReadAll(r.Body)
-	if err != nil {
-		s.fileLogger.Error("io.ReadAll ERROR:", err)
+	var bodyBytes []byte
+	if r.Body != nil {
+		bodyBytes, err = io.ReadAll(r.Body)
+		if err != nil {
+			s.fileLogger.Error("io.ReadAll ERROR:", err)
+		}
+		r.Body.Close()
 	}
+
 	bodyString := string(bodyBytes)
 	//fmt.Println(bodyString)
 	s.fileLogger.Info("code: %s, uid:%s  Response body: %s", r.Status, uid, bodyString)
