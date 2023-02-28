@@ -166,15 +166,15 @@ func (s *Supervisor) PostWarningToFeishu(warnRule WarnRule, feishuUrl string, wa
 			Tag:    "at",
 			UserId: "all",
 		}
-		imageTag := Tag{
-			Tag:      "img",
-			ImageKey: "img_7ea74629-9191-4176-998c-2e603c9c5e8g",
-		}
+		//imageTag := Tag{
+		//	Tag:      "img",
+		//	ImageKey: "img_7ea74629-9191-4176-998c-2e603c9c5e8g",
+		//}
 		var tagLine []Tag //一行
 		var tagLines [][]Tag
-		tagLine = append(tagLine, textTag, atAllTag)    // 一行内容
-		imageLine := []Tag{imageTag}                    // 图片行
-		tagLines = append(tagLines, tagLine, imageLine) //组合多行
+		tagLine = append(tagLine, textTag, atAllTag) // 一行内容
+		//imageLine := []Tag{imageTag}                    // 图片行
+		tagLines = append(tagLines, tagLine) //组合多行
 		// 结构体组合
 		zhcn := ZhCN{
 			Title:   title,
@@ -220,15 +220,15 @@ func (s *Supervisor) PostWarningToFeishu(warnRule WarnRule, feishuUrl string, wa
 			Tag:    "at",
 			UserId: "all",
 		}
-		imageTag := Tag{
-			Tag:      "img",
-			ImageKey: "img_7ea74629-9191-4176-998c-2e603c9c5e8g",
-		}
+		//imageTag := Tag{
+		//	Tag:      "img",
+		//	ImageKey: "img_7ea74629-9191-4176-998c-2e603c9c5e8g",
+		//}
 		var tagLine []Tag //一行
 		var tagLines [][]Tag
-		tagLine = append(tagLine, textTag, atAllTag)    // 一行内容
-		imageLine := []Tag{imageTag}                    // 图片行
-		tagLines = append(tagLines, tagLine, imageLine) //组合多行
+		tagLine = append(tagLine, textTag, atAllTag) // 一行内容
+		//imageLine := []Tag{imageTag}                    // 图片行
+		tagLines = append(tagLines, tagLine) //组合多行
 		// 结构体组合
 		zhcn := ZhCN{
 			Title:   title,
@@ -266,15 +266,15 @@ func (s *Supervisor) PostWarningToFeishu(warnRule WarnRule, feishuUrl string, wa
 			Tag:    "at",
 			UserId: "all",
 		}
-		imageTag := Tag{
-			Tag:      "img",
-			ImageKey: "img_7ea74629-9191-4176-998c-2e603c9c5e8g",
-		}
+		//imageTag := Tag{
+		//	Tag:      "img",
+		//	ImageKey: "img_7ea74629-9191-4176-998c-2e603c9c5e8g",
+		//}
 		var tagLine []Tag //一行
 		var tagLines [][]Tag
-		tagLine = append(tagLine, textTag, atAllTag)    // 一行内容
-		imageLine := []Tag{imageTag}                    // 图片行
-		tagLines = append(tagLines, tagLine, imageLine) //组合多行
+		tagLine = append(tagLine, textTag, atAllTag) // 一行内容
+		//imageLine := []Tag{imageTag}                    // 图片行
+		tagLines = append(tagLines, tagLine) //组合多行
 		// 结构体组合
 		zhcn := ZhCN{
 			Title:   title,
