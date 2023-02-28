@@ -223,7 +223,7 @@ func (s *Supervisor) PostWarningToFeishu(warnRule WarnRule, feishuUrl string, wa
 		//imageTag := Tag{
 		//	Tag:      "img",
 		//	ImageKey: "img_7ea74629-9191-4176-998c-2e603c9c5e8g",
-		//}
+		//} //计划下次自定义制作图片
 		var tagLine []Tag //一行
 		var tagLines [][]Tag
 		tagLine = append(tagLine, textTag, atAllTag) // 一行内容
