@@ -105,6 +105,11 @@ func (s *Supervisor) PostWarningToFeishu(warnRule WarnRule, feishuUrl string, wa
 		if warnValue == -8888.8888 && lastPointValue == -8888.8888 {
 			title = fmt.Sprintf("%s！ 资源类型：%s 资源名称：%s 监控项：%s 连续3次 3个周期内数据查询结果为null\n", warnTypeStr, resource.namespace, resource.name, rule.metric_name)
 			textMSG = fmt.Sprintf("实例ID:%s\nUID:%s\nRegion:%s", resource.instance_id, resource.uid, s.GetRegionChinese(resource.region))
+			feishuUrl = "https://open.feishu.cn/open-apis/bot/v2/hook/9365c112-a94f-4f11-ab7c-86dafd9fc704"
+			urlObj, err = url.Parse(feishuUrl)
+			if err != nil {
+				s.fileLogger.Error("url.Parse Error:%v", err)
+			}
 		}
 		textTag := Tag{
 			Tag:  "text",
@@ -114,15 +119,15 @@ func (s *Supervisor) PostWarningToFeishu(warnRule WarnRule, feishuUrl string, wa
 			Tag:    "at",
 			UserId: "all",
 		}
-		imageTag := Tag{
-			Tag:      "img",
-			ImageKey: "img_7ea74629-9191-4176-998c-2e603c9c5e8g",
-		}
+		//imageTag := Tag{
+		//	Tag:      "img",
+		//	ImageKey: "img_7ea74629-9191-4176-998c-2e603c9c5e8g",
+		//}
 		var tagLine []Tag //一行
 		var tagLines [][]Tag
-		tagLine = append(tagLine, textTag, atAllTag)    // 一行内容
-		imageLine := []Tag{imageTag}                    // 图片行
-		tagLines = append(tagLines, tagLine, imageLine) //组合多行
+		tagLine = append(tagLine, textTag, atAllTag) // 一行内容
+		//imageLine := []Tag{imageTag}                    // 图片行
+		tagLines = append(tagLines, tagLine) //组合多行
 		// 结构体组合
 		zhcn := ZhCN{
 			Title:   title,
@@ -319,8 +324,8 @@ func (s *Supervisor) PostWarningToFeishu(warnRule WarnRule, feishuUrl string, wa
 }
 
 // PostWarningToWechat 向微信发报警
-func (s *Supervisor) PostWarningToWechat(warnRule WarnRule, feishuUrl string, warnResource WarnResource, warnValue, lastPointValue float64, firstAlarmTimeStamp, warnTypeStr string, alarmTimes int) {
-	parsedUrl, err := url.Parse(feishuUrl)
+func (s *Supervisor) PostWarningToWechat(warnRule WarnRule, wechatUrl string, warnResource WarnResource, warnValue, lastPointValue float64, firstAlarmTimeStamp, warnTypeStr string, alarmTimes int) {
+	parsedUrl, err := url.Parse(wechatUrl)
 	if err != nil {
 		s.fileLogger.Error("url.Parse Error:%v", err)
 	}
@@ -367,6 +372,11 @@ func (s *Supervisor) PostWarningToWechat(warnRule WarnRule, feishuUrl string, wa
 		if warnValue == -8888.8888 && lastPointValue == -8888.8888 {
 			title = fmt.Sprintf("%s！ 资源类型：%s 资源名称：%s 监控项：%s 连续3次 3个周期内数据查询结果为null\n", warnTypeStr, resource.namespace, resource.name, rule.metric_name)
 			textMSG = fmt.Sprintf("实例ID:%s\nUID:%s\nRegion:%s", resource.instance_id, resource.uid, s.GetRegionChinese(resource.region))
+			wechatUrl = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=fae4ffd2-02a9-47c7-9ab4-22f288ec4001"
+			parsedUrl, err = url.Parse(wechatUrl)
+			if err != nil {
+				s.fileLogger.Error("url.Parse Error:%v", err)
+			}
 		}
 		colorTitle := "<font color=\"" + warnColor + "\">" + title + "</font>"
 		markDown := WechatMarkDown{Content: colorTitle + textMSG}
@@ -467,9 +477,9 @@ func (s *Supervisor) PostWarningToWechat(warnRule WarnRule, feishuUrl string, wa
 	}
 	bodyStr := string(recvBytes)
 	if response.StatusCode != 200 {
-		s.fileLogger.Error("向企微信%s 请求返回status:%s, code: %d , body: %s", feishuUrl, response.Status, response.StatusCode, bodyStr)
+		s.fileLogger.Error("向企微信%s 请求返回status:%s, code: %d , body: %s", wechatUrl, response.Status, response.StatusCode, bodyStr)
 	} else {
-		s.fileLogger.Info("向企微信%s 请求返回status:%s, code: %d , body: %s", feishuUrl, response.Status, response.StatusCode, bodyStr)
+		s.fileLogger.Info("向企微信%s 请求返回status:%s, code: %d , body: %s", wechatUrl, response.Status, response.StatusCode, bodyStr)
 	}
 }
 
