@@ -27,8 +27,8 @@ type metadata struct {
 	RequestId string `json:"requestId"`
 }
 
-// statisticsBatchResult  定义接收数据的结构体，注意属性开头必须用大写，否则无法写入数据
-type statisticsBatchResult struct {
+// StatisticsBatchResult  定义接收数据的结构体，注意属性开头必须用大写，否则无法写入数据
+type StatisticsBatchResult struct {
 	GetMetricStatisticsBatchResults []Result `json:"getMetricStatisticsBatchResults"`
 	ResponseMetadata                metadata `json:"responseMetadata"`
 }

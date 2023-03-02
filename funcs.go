@@ -37,7 +37,7 @@ func (s *Supervisor) CreateDBPool(dbAddr string) {
 }
 
 // GetMetricStatisticsBatch 获取云端监控数据
-func (s *Supervisor) GetMetricStatisticsBatch(uid, ns, metricName, region, instanceId string, period, leadTime, timeWindow int) (res statisticsBatchResult, err error) {
+func (s *Supervisor) GetMetricStatisticsBatch(uid, ns, metricName, region, instanceId string, period, leadTime, timeWindow int) (res StatisticsBatchResult, err error) {
 	//异常处理
 	defer func() {
 		//捕获异常
@@ -126,7 +126,7 @@ func (s *Supervisor) GetMetricStatisticsBatch(uid, ns, metricName, region, insta
 	bodyString := string(bodyBytes)
 	//fmt.Println(bodyString)
 	s.fileLogger.Info("code: %s, uid:%s  Response body: %s", r.Status, uid, bodyString)
-	//var res statisticsBatchResult
+	//var res StatisticsBatchResult
 	err = json.Unmarshal(bodyBytes, &res)
 	if err != nil {
 		s.fileLogger.Error("Unmarshal bodyBytes Failed %v:", err)
@@ -135,7 +135,7 @@ func (s *Supervisor) GetMetricStatisticsBatch(uid, ns, metricName, region, insta
 }
 
 // FromStatisticsBatchResultGetLastPointValue 解析获取的云端数据
-func (s *Supervisor) FromStatisticsBatchResultGetLastPointValue(res statisticsBatchResult, aggregate string) (value float64, timestamp string) {
+func (s *Supervisor) FromStatisticsBatchResultGetLastPointValue(res StatisticsBatchResult, aggregate string) (value float64, timestamp string) {
 	//异常处理
 	defer func() {
 		//捕获异常
