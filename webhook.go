@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -483,6 +484,163 @@ func (s *Supervisor) PostWarningToWechat(warnRule WarnRule, wechatUrl string, wa
 	}
 }
 
+// PostWarningToKdoc 向微信发报警
+func (s *Supervisor) PostWarningToKdoc(warnRule WarnRule, wechatUrl string, warnResource WarnResource, warnValue, lastPointValue float64, firstAlarmTimeStamp, warnTypeStr string, alarmTimes int) {
+	parsedUrl, err := url.Parse(wechatUrl)
+	if err != nil {
+		s.fileLogger.Error("url.Parse Error:%v", err)
+	}
+	loc, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		s.fileLogger.Error(" time.LoadLocation Error:", err)
+	}
+	warnColor := "red"
+	if warnTypeStr == "警报解除" {
+		warnColor = "green"
+	}
+	var locationTime time.Time
+	//要发送的字节
+	var marshalBody []byte
+	var kdocData KdocData
+	switch rule := warnRule.(type) {
+	case Rule:
+		ruleTypeChinese := s.GetRuleTypeChinese(rule.rule_type)
+		ruleTextChinese := s.GetRuleTextChinese(rule)
+		change := ""
+		if rule.rule_type == 1 {
+			change = "一分钟内变化"
+		}
+		var resource Resource
+		switch v := warnResource.(type) {
+		case Resource:
+			resource = v
+		}
+		title := fmt.Sprintf("%s： %s 监控项:%s %s值:%v\n\n", warnTypeStr, resource.name, rule.metric_name, change, warnValue)
+		var textMSG string
+		if rule.rule_type == 0 {
+			locationTime, err = time.ParseInLocation("2006-01-02 15:04:05", firstAlarmTimeStamp, loc)
+			duration := fmt.Sprintf("持续时间：%s\n\n", time.Now().Sub(locationTime).String()) // 持续时间
+			textMSG = fmt.Sprintf("时间：%s\n\n资源名称：%s\n\n监控项：%s\n\n当前%s值：%v\n\n%sUID：%s\n\n实例ID：%s\n\n地区：%s\n\nNameSpace：%s\n\n报警策略名称：%s\n\n策略类型：%s\n\n规则：统计%v分钟%s %s\n\n已报警次数：第%v次/最多%v次<at user_id=\"-1\">所有人</at>",
+				firstAlarmTimeStamp, resource.name, rule.metric_name, change, warnValue, duration,
+				resource.uid, resource.instance_id, s.GetRegionChinese(resource.region),
+				rule.namespace, rule.alarm_name, ruleTypeChinese, rule.period, s.GetAggregateChinese(rule.aggregate), ruleTextChinese, alarmTimes, rule.max_alarm_times)
+		} else if rule.rule_type == 1 {
+			textMSG = fmt.Sprintf("时间：%s\n\n资源名称：%s\n\n监控项：%s\\nn%s值：%v\n\n当前值：%v\n\nUID：%s\n\n实例ID：%s\n\n地区：%s\n\nNameSpace：%s\n\n报警策略名称：%s\n\n策略类型：%s\n\n规则：%s<at user_id=\"-1\">所有人</at>",
+				firstAlarmTimeStamp, resource.name, rule.metric_name, change, warnValue, lastPointValue,
+				resource.uid, resource.instance_id, s.GetRegionChinese(resource.region),
+				rule.namespace, rule.alarm_name, ruleTypeChinese, ruleTextChinese)
+		}
+		// 如果查询数数据都为空。也报一下失败
+		if warnValue == -8888.8888 && lastPointValue == -8888.8888 {
+			title = fmt.Sprintf("%s！ 资源类型：%s 资源名称：%s 监控项：%s 连续3次 3个周期内数据查询结果为null\n\n", warnTypeStr, resource.namespace, resource.name, rule.metric_name)
+			textMSG = fmt.Sprintf("实例ID:%s\n\nUID:%s\n\nRegion:%s", resource.instance_id, resource.uid, s.GetRegionChinese(resource.region))
+			wechatUrl = "https://xz.wps.cn/api/v1/webhook/send?key=2e5ce5563515755e2bb3d0e41007740f"
+			parsedUrl, err = url.Parse(wechatUrl)
+			if err != nil {
+				s.fileLogger.Error("url.Parse Error:%v", err)
+			}
+		}
+		colorTitle := "### <font color=\"" + warnColor + "\">" + title + "</font>"
+		markDown := KdocMarkDownText{Text: colorTitle + textMSG}
+		kdocData = KdocData{MsgType: "markdown",
+			MarkDown: markDown}
+	case IPPingLossRule:
+		var resource IPResource
+		switch v := warnResource.(type) {
+		case IPResource:
+			resource = v
+		}
+		loc, err := time.LoadLocation("Asia/Shanghai")
+		if err != nil {
+			s.fileLogger.Error(" time.LoadLocation Error:", err)
+		}
+		locationTime, err := time.ParseInLocation("2006-01-02 15:04:05", firstAlarmTimeStamp, loc)
+		duration := fmt.Sprintf("持续时间：%s\n\n", time.Now().Sub(locationTime).String()) // 持续时间
+		title := fmt.Sprintf("%s! 客户：%s  %s IP: %s 丢包率: %v%%\n\n", warnTypeStr, resource.customer_name, resource.name, resource.genericIPAddress, warnValue)
+		textMSG := fmt.Sprintf("<font size=\"18\" face=\"verdana\">时间：%s\n\n资源名称：%s\n\nIP地址：%s\n\n丢包率：%v%%\n\n归属地：%s\n\n%s</font>报警策略名称：%s\n\n 规则：连续%v分钟丢包%s超过%v%%\n\n已报警次数：第%v次/最多%v次\n\n<at user_id=\"-1\">所有人</at>",
+			firstAlarmTimeStamp, resource.name, resource.genericIPAddress, warnValue, resource.location, duration, rule.alarm_name, rule.period, s.GetAggregateChinese(rule.aggregate), rule.upper_limit, alarmTimes, rule.max_alarm_times)
+		colorTitle := "### <font color=\"" + warnColor + "\">" + title + "</font>"
+		markDown := KdocMarkDownText{Text: colorTitle + textMSG}
+		kdocData = KdocData{MsgType: "markdown",
+			MarkDown: markDown}
+	case *HttpUrlRule:
+		//var resource HttpUrlRule
+		//switch v := warnResource.(type) {
+		//case HttpUrlRule:
+		//	resource = v
+		//}
+		//
+		healthy := "不健康"
+		if warnTypeStr == "警报解除" {
+			healthy = "恢复健康！"
+		}
+		//locationTime, err = time.ParseInLocation("2006-01-02 15:04:05", timeStamp, loc)
+		var httpCode string
+		if warnValue == -8888 {
+			httpCode = "timeout"
+		} else {
+			httpCode = strconv.Itoa(int(warnValue))
+		}
+
+		title := fmt.Sprintf("%s! HTTP：%s   %s 状态码: %s\n\n", warnTypeStr, rule.url_name, healthy, httpCode)
+		textMSG := fmt.Sprintf("<font size=\"18\" face=\"verdana\">时间：%s\n\n资源名称：%s\n\n地址：%s\n\n状态码：%v\n\n检测间隔：%v秒\n\n健康阈值：%v次\n\n不健康阈值：%v次\n\n已报警次数：第%v次/最多%v次</font><at user_id=\"-1\">所有人</at>",
+			firstAlarmTimeStamp, rule.url_name, rule.url, httpCode, rule.test_interval_second, rule.healthy_times, rule.unhealthy_times, alarmTimes, rule.max_alarm_times)
+		colorTitle := "### <font color=\"" + warnColor + "\">" + title + "</font>"
+		markDown := KdocMarkDownText{Text: colorTitle + textMSG}
+		kdocData = KdocData{MsgType: "markdown",
+			MarkDown: markDown}
+	case Announcement:
+		warnColor = "black"
+		var title string
+		switch alarmTimes {
+		case 1:
+			title = "割接/升级/变更通知：1小时后有如下升级或变更\n\n"
+		case 13:
+			title = "割接/升级/变更通知：13小时后有如下升级或变更\n\n"
+		case 72:
+			title = "割接/升级/变更通知：近日有如下升级或变更\n\n"
+
+		}
+		content := "### <font size=\"18\" color=\"" + warnColor + "\">" + title + "</font>" + rule.content + "<at user_id=\"-1\">所有人</at>"
+		text := strings.ReplaceAll(content, "\n", "\n\n")
+		markDown := KdocMarkDownText{Text: text}
+		kdocData = KdocData{MsgType: "markdown",
+			MarkDown: markDown}
+	}
+
+	////////////////////////////////////////////////////////////
+	//发送请求
+	//bbb := []byte(message)
+	marshalBody, err = json.Marshal(kdocData)
+	request, err := http.NewRequest("POST", parsedUrl.String(), bytes.NewBuffer(marshalBody))
+	if err != nil {
+		s.fileLogger.Error("Kdoc http.NewRequest Error:%v", err)
+	}
+	defer request.Body.Close()
+	request.Header.Set("Content-Type", "application/json")
+	var response *http.Response
+	response, err = http.DefaultClient.Do(request)
+	if err != nil {
+		s.fileLogger.Error("Kdoc http.DefaultClient.Do Error:%v", err)
+	}
+	var recvBytes []byte
+	if response.Body != nil {
+		recvBytes, err = io.ReadAll(response.Body)
+		if err != nil {
+			if err != nil {
+				s.fileLogger.Error("Read Kdoc r.Body Error: %v", err)
+			}
+		}
+		response.Body.Close()
+	}
+	bodyStr := string(recvBytes)
+	if response.StatusCode != 200 {
+		s.fileLogger.Error("向Kdoc  %s 请求返回status:%s, code: %d , body: %s", wechatUrl, response.Status, response.StatusCode, bodyStr)
+	} else {
+		s.fileLogger.Info("向Kdoc  %s 请求返回status:%s, code: %d , body: %s", wechatUrl, response.Status, response.StatusCode, bodyStr)
+	}
+}
+
 // WarningToWebhook 发送报警
 func (s *Supervisor) WarningToWebhook(warnRule WarnRule, warnResource WarnResource, warnValue, lastPointValue float64, timeStamp string, warnType, alarmTimes int) {
 	var warnTypeStr string
@@ -523,6 +681,9 @@ func (s *Supervisor) WarningToWebhook(warnRule WarnRule, warnResource WarnResour
 		} else if webhook.webhook_type == 1 {
 			wechatUrl := webhook.url
 			s.PostWarningToWechat(warnRule, wechatUrl, warnResource, warnValue, lastPointValue, timeStamp, warnTypeStr, alarmTimes)
+		} else if webhook.webhook_type == 2 {
+			kdocUrl := webhook.url
+			s.PostWarningToKdoc(warnRule, kdocUrl, warnResource, warnValue, lastPointValue, timeStamp, warnTypeStr, alarmTimes)
 		}
 	}
 }

@@ -190,6 +190,17 @@ type WechatData struct {
 	MarkDown WechatMarkDown `json:"markdown"`
 }
 
+// KdocData 金山文档机器人 推送消息结构体
+type KdocData struct {
+	MsgType  string           `json:"msgtype"`
+	MarkDown KdocMarkDownText `json:"markdown"`
+}
+
+// KdocMarkDownText 金山文档机器人 推送消息结构体MarkDown 内容
+type KdocMarkDownText struct {
+	Text string `json:"text"`
+}
+
 // IPResource IP资源结构体
 type IPResource struct {
 	id               int

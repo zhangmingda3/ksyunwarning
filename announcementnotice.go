@@ -183,6 +183,8 @@ func (s *Supervisor) StartNoticeAnnouncement(flushMin int) {
 		announcements := s.GetAnnouncements()
 		now := time.Now()
 		nowStr := now.Format("2006-01-02 15:04:05")
+		data := make(map[string]string)
+
 		for _, announcement := range announcements {
 			startTime, _ := time.ParseInLocation("2006-01-02 15:04:05", announcement.start_time, loc)
 			//startTime, err := time.Parse("2006-01-02 15:04:05", announcement.start_time)
@@ -204,47 +206,62 @@ func (s *Supervisor) StartNoticeAnnouncement(flushMin int) {
 				//fmt.Println(noticeHistory)
 				if timeDurationHours < 1 && noticeHistory.notice_one_hours_advance == 0 {
 					// 1小时内割接通知
+					data["notice_one_hours_advance"] = "1"
+					data["notice_one_hours_time"] = nowStr
 					// 发通知后更新数据库
 					if bondWebhook.webhook_type == 0 {
 						feishuUrl := bondWebhook.url
 						s.PostWarningToFeishu(announcement, feishuUrl, announcement, timeDurationHours, timeDurationHours, nowStr, "通知", 1)
+						// 更新都数据库
+						s.UpdateNoticeHistory(noticeHistory.id, data)
 					} else if bondWebhook.webhook_type == 1 {
 						wechatUrl := bondWebhook.url
 						s.PostWarningToWechat(announcement, wechatUrl, announcement, timeDurationHours, timeDurationHours, nowStr, "通知", 1)
+						// 更新都数据库
+						s.UpdateNoticeHistory(noticeHistory.id, data)
+					} else if bondWebhook.webhook_type == 2 {
+						s.PostWarningToKdoc(announcement, bondWebhook.url, announcement, timeDurationHours, timeDurationHours, nowStr, "通知", 72)
+						// 更新都数据库
+						s.UpdateNoticeHistory(noticeHistory.id, data)
 					}
-					data := make(map[string]string)
-					data["notice_one_hours_advance"] = "1"
-					data["notice_one_hours_time"] = nowStr
-					// 更新都数据库
-					s.UpdateNoticeHistory(noticeHistory.id, data)
 				} else if timeDurationHours < 13 && noticeHistory.notice_thirteen_hours_advance == 0 {
 					//13小时内割接通知
+					data["notice_thirteen_hours_advance"] = "1"
+					data["notice_thirteen_hours_time"] = nowStr
 					if bondWebhook.webhook_type == 0 {
 						feishuUrl := bondWebhook.url
 						s.PostWarningToFeishu(announcement, feishuUrl, announcement, timeDurationHours, timeDurationHours, nowStr, "通知", 13)
+						// 更新都数据库
+						s.UpdateNoticeHistory(noticeHistory.id, data)
 					} else if bondWebhook.webhook_type == 1 {
 						wechatUrl := bondWebhook.url
 						s.PostWarningToWechat(announcement, wechatUrl, announcement, timeDurationHours, timeDurationHours, nowStr, "通知", 13)
+						// 更新都数据库
+						s.UpdateNoticeHistory(noticeHistory.id, data)
+					} else if bondWebhook.webhook_type == 2 {
+						s.PostWarningToKdoc(announcement, bondWebhook.url, announcement, timeDurationHours, timeDurationHours, nowStr, "通知", 72)
+						// 更新都数据库
+						s.UpdateNoticeHistory(noticeHistory.id, data)
 					}
-					data := make(map[string]string)
-					data["notice_thirteen_hours_advance"] = "1"
-					data["notice_thirteen_hours_time"] = nowStr
-					// 更新都数据库
-					s.UpdateNoticeHistory(noticeHistory.id, data)
 				} else if timeDurationHours < 86 && noticeHistory.notice_three_days_advance == 0 {
 					//	72小时内割接通知
+					data["notice_three_days_advance"] = "1"
+					data["notice_three_days_time"] = nowStr
 					if bondWebhook.webhook_type == 0 {
 						feishuUrl := bondWebhook.url
 						s.PostWarningToFeishu(announcement, feishuUrl, announcement, timeDurationHours, timeDurationHours, nowStr, "通知", 72)
+						// 更新都数据库
+						s.UpdateNoticeHistory(noticeHistory.id, data)
 					} else if bondWebhook.webhook_type == 1 {
 						wechatUrl := bondWebhook.url
 						s.PostWarningToWechat(announcement, wechatUrl, announcement, timeDurationHours, timeDurationHours, nowStr, "通知", 72)
+						// 更新都数据库
+						s.UpdateNoticeHistory(noticeHistory.id, data)
+					} else if bondWebhook.webhook_type == 2 {
+						s.PostWarningToKdoc(announcement, bondWebhook.url, announcement, timeDurationHours, timeDurationHours, nowStr, "通知", 72)
+						// 更新都数据库
+						s.UpdateNoticeHistory(noticeHistory.id, data)
 					}
-					data := make(map[string]string)
-					data["notice_three_days_advance"] = "1"
-					data["notice_three_days_time"] = nowStr
-					// 更新都数据库
-					s.UpdateNoticeHistory(noticeHistory.id, data)
 				}
 			}
 
